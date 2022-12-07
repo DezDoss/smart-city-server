@@ -34,34 +34,53 @@ public class PdfService {
         this.personRepository = personRepository;
     }
 
-    public void getZippedFile(List<Long> list) throws IOException, DocumentException {
-        List<Person> personList = new ArrayList<>();
-        for(Long id : list) {
-            Optional<Person> person = personRepository.findById(id);
-            if(person.isPresent()) {
-                personList.add(person.get());
-            }
-        }
-
+    public List<Long> getZippedFile() throws IOException, DocumentException {
+        List<Person> personList = personRepository.findAllByStatus("Отправлен в обработку");
+//        System.out.println(personList.size());
+//        int otherLength = 0;
+//        int pensionerLength = defineLength(personList, "Пенсионер");
+//        int pupilLength = defineLength(personList, "Школьник");
+//        int studentLength = defineLength(personList, "Студент");
+//        int mnogodetLength = defineLength(personList, "Многодетные");
+//
+//        otherLength += defineLength(personList, "Инвалид 1 гр");
+//        otherLength += defineLength(personList, "Инвалид 2 гр");
+//        otherLength += defineLength(personList, "Инвалид 3 гр");
+//        otherLength += defineLength(personList, "Опекун");
+//        otherLength += defineLength(personList, "Ветеран");
+//
+//        System.out.println(pensionerLength);
+//        System.out.println(pupilLength);
+//        System.out.println(studentLength);
+//        System.out.println(mnogodetLength);
+//        System.out.println(otherLength);
         ArrayList<Person> pensioners = new ArrayList<>();
         for(Person person : personList) {
-            System.out.println(person.getCardType());
             if(person.getCardType().equals("Пенсионер")) {
                 pensioners.add(person);
             }
+            if(pensioners.size() == 10) {
+                break;
+            }
         }
-
+//
         ArrayList<Person> pupils = new ArrayList<>();
         for(Person person : personList) {
             if(person.getCardType().equals("Школьник")) {
                 pupils.add(person);
             }
+            if(pupils.size() == 10) {
+                break;
+            }
         }
-
+//
         ArrayList<Person> students = new ArrayList<>();
         for(Person person : personList) {
             if(person.getCardType().equals("Студент")) {
                 students.add(person);
+            }
+            if (students.size() == 10) {
+                break;
             }
         }
 
@@ -70,20 +89,34 @@ public class PdfService {
             if(person.getCardType().equals("Многодетные")) {
                 mnogodentie.add(person);
             }
+            if(mnogodentie.size() == 10) {
+                break;
+            }
         }
         ArrayList<Person> otherList = new ArrayList<>();
         for(Person person : personList) {
-            if(person.getCardType().equals("Инвалид 1 гр") || person.getCardType().equals("Инвалид 2 гр") || person.getCardType().equals("Инвалид 3 гр") || person.getCardType().equals("Опекун") || person.getCardType().equals("Ветеран")) {
+            if(person.getCardType().equals("Инвалид 1 гр") || person.getCardType().equals("Инвалид 2 гр") ||
+            person.getCardType().equals("Инвалид 3 гр") || person.getCardType().equals("Опекун") ||
+            person.getCardType().equals("Ветеран")) {
                 otherList.add(person);
             }
+            if(otherList.size() == 10) {
+                break;
+            }
         }
+        if(pensioners.size() < 10) pensioners = new ArrayList<>();
+        if(pupils.size() < 10) pupils = new ArrayList<>();
+        if(students.size() < 10) students = new ArrayList<>();
+        if(mnogodentie.size() < 10) mnogodentie = new ArrayList<>();
+        if(otherList.size() < 10) otherList = new ArrayList<>();
 
-        List<String> pathsToDelete = new ArrayList<>();
-        List<String> pensPath = createFile("pdf/front-pensioner.pdf", "pdf/back-pensioner.pdf", pensioners);
-        List<String> pupilsPath = createFile("pdf/front-schoolboy.pdf", "pdf/back-schoolboy.pdf", pupils);
-        List<String> studentsPath = createFile("pdf/front-student.pdf", "pdf/back-student.pdf", students);
-        List<String> mnogodetniePath = createFile("pdf/front-mnogodet.pdf", "pdf/back-mnogodet.pdf", mnogodentie);
-        List<String> others = createFile("pdf/front-inv-opekun-veteran.pdf", "pdf/back-inv-opekun-veteran.pdf", otherList);
+//
+        List<Long> idList = new ArrayList<>();
+        createFile("pdf/front-pensioner.pdf", "pdf/back-pensioner.pdf", pensioners, idList);
+        createFile("pdf/front-schoolboy.pdf", "pdf/back-schoolboy.pdf", pupils, idList);
+        createFile("pdf/front-student.pdf", "pdf/back-student.pdf", students, idList);
+        createFile("pdf/front-mnogodet.pdf", "pdf/back-mnogodet.pdf", mnogodentie, idList);
+        createFile("pdf/front-inv-opekun-veteran.pdf", "pdf/back-inv-opekun-veteran.pdf", otherList, idList);
 
         String sourceFile = "result";
         FileOutputStream fos = new FileOutputStream("zip/edited.zip");
@@ -95,6 +128,8 @@ public class PdfService {
         System.out.println("end");
         File file = new File("result");
         FileUtils.cleanDirectory(file);
+
+        return idList;
     }
 
     private  void setText(String text, int x, int y, PdfContentByte content, int size) throws IOException, DocumentException {
@@ -128,8 +163,8 @@ public class PdfService {
 
     }
 
-    private  List<String> createFile(String frontPath, String backPath, List<Person> personList) throws IOException, DocumentException {
-        if(personList.size() == 0) return Collections.EMPTY_LIST;
+    private  void createFile(String frontPath, String backPath, List<Person> personList, List<Long> idList) throws IOException, DocumentException {
+        if(personList.size() == 0) return;
         String resultPathFront = "result/out-" + frontPath.substring(4);
         String resultPathBack = "result/out-" + backPath.substring(4);
         String path = frontPath;
@@ -147,7 +182,7 @@ public class PdfService {
 
 
         for (Person person : personList) {
-            System.out.println(person.getIin());
+            idList.add(person.getId());
             String barCode = person.getBarCode();
             String editedBarCode = barCode.substring(0, 3) + " " + barCode.substring(3,6) + " " + barCode.substring(6);
             String iin = person.getIin();
@@ -162,7 +197,6 @@ public class PdfService {
                 setText(editedIin, COORDINATE_X + 33, coordinateY - 18, content, 10);
 
                 setBarCode(barCode, COORDINATE_X*2 + 86 + 4, coordinateY, backContent);
-
                 setText(editedBarCode, COORDINATE_X * 2 - 4, coordinateY + 84, backContent, 16);
                 column++;
 
@@ -182,10 +216,10 @@ public class PdfService {
         back.close();
         stamper.close();
 
-        ArrayList<String> listPath = new ArrayList<>();
-        listPath.add(resultPathFront);
-        listPath.add(resultPathBack);
-        return  listPath;
+//        ArrayList<String> listPath = new ArrayList<>();
+//        listPath.add(resultPathFront);
+//        listPath.add(resultPathBack);
+//        return  listPath;
     }
 
     private  void zipFile(File fileToZip, String fileName, ZipOutputStream zipOut) throws IOException {
@@ -215,5 +249,25 @@ public class PdfService {
             zipOut.write(bytes, 0, length);
         }
         fis.close();
+    }
+
+    private int defineLength(List<Person> personList, String category) {
+        int length = 0;
+
+        for(Person person : personList) {
+            if(person.getCardType().equals(category)) {
+                length++;
+            }
+        }
+
+        return length;
+    }
+
+    private void addToList(List<Person> personList, List<Person> categoryList, String category) {
+        for(Person person : personList) {
+            if(person.getCardType().equals(category)) {
+                categoryList.add(person);
+            }
+        }
     }
 }
